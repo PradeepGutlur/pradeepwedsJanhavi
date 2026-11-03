@@ -10,6 +10,11 @@
     muhurtham: '2026-12-03T08:00:00+05:30',
     introDuration: 10000,
     musicVolume: 0.55,
+    // Tracks play in order and repeat; a single-track list loops.
+    playlists: {
+      opening: ['assets/audio/opening-music.mp3'],
+      wedding: ['assets/audio/wedding-music.mp3', 'assets/audio/song-1.mp3'],
+    },
   };
 
   const $ = (sel, root = document) => root.querySelector(sel);
@@ -114,29 +119,74 @@
      Music controller
      --------------------------------------------------------- */
   const Music = (() => {
-    const tracks = { opening: $('#openingAudio'), wedding: $('#weddingAudio') };
     const labels = { opening: 'Opening Music', wedding: 'Wedding Music', synth: 'Temple Ambience' };
     const ui = $('#music');
     const playBtn = $('#musicPlay');
     const muteBtn = $('#musicMute');
     const label = $('#musicLabel');
-    const failed = new Set();
+    const failed = new Set(); // URLs that could not be loaded
+    const channels = {};
     let current = null; // 'opening' | 'wedding' | 'synth'
     let playing = false;
     let muted = false;
     let resumeOnVisible = false;
     const listeners = [];
 
-    // With <source> children a missing file leaves play() pending forever, so fall back on the source error.
-    Object.entries(tracks).forEach(([key, el]) => {
-      el.volume = CONFIG.musicVolume;
-      const src = el.querySelector('source');
-      if (!src) return;
-      src.addEventListener('error', () => {
-        failed.add(el);
-        if (current === key && playing) useSynth();
+    Object.entries(CONFIG.playlists).forEach(([name, list]) => {
+      const ch = { name, list, idx: 0, el: new Audio() };
+      ch.el.preload = 'none';
+      ch.el.loop = list.length === 1;
+      ch.el.addEventListener('ended', () => advance(ch));
+      ch.el.addEventListener('error', () => {
+        failed.add(ch.list[ch.idx]);
+        if (current === name && playing) advance(ch);
       });
+      channels[name] = ch;
     });
+
+    function nextPlayable(ch, from) {
+      for (let k = 1; k <= ch.list.length; k += 1) {
+        const i = (from + k) % ch.list.length;
+        if (!failed.has(ch.list[i])) return i;
+      }
+      return -1;
+    }
+
+    function load(ch) {
+      const url = ch.list[ch.idx];
+      if (ch.el.getAttribute('src') !== url) ch.el.src = url;
+    }
+
+    function fadeIn(el) {
+      el.volume = 0;
+      let step = 0;
+      const id = setInterval(() => {
+        step += 1;
+        el.volume = Math.min(CONFIG.musicVolume, (CONFIG.musicVolume * step) / 12);
+        if (step >= 12) clearInterval(id);
+      }, 80);
+    }
+
+    function playChannel(ch) {
+      load(ch);
+      ch.el.muted = muted;
+      const p = ch.el.play();
+      if (p && p.catch) {
+        p.then(render).catch((err) => {
+          // Load failures are handled by the 'error' event; only react to a blocked autoplay here.
+          if (err && err.name === 'NotAllowedError' && current === ch.name) { playing = false; render(); }
+        });
+      }
+    }
+
+    function advance(ch) {
+      if (current !== ch.name) return;
+      const i = nextPlayable(ch, ch.idx);
+      if (i < 0) { useSynth(); return; }
+      ch.idx = i;
+      fadeIn(ch.el);
+      playChannel(ch);
+    }
 
     function useSynth() {
       current = 'synth';
@@ -169,43 +219,36 @@
       }, 80);
     }
 
-    function tryPlay(el) {
-      if (failed.has(el)) return Promise.resolve(false);
-      el.muted = muted;
-      el.volume = CONFIG.musicVolume;
-      let p;
-      try { p = el.play(); } catch (e) { return Promise.resolve(false); }
-      return Promise.resolve(p).then(() => true).catch((err) => {
-        if (!err || err.name !== 'NotAllowedError') failed.add(el);
-        return false;
-      });
-    }
-
     // Must be called from a user gesture.
     function start(name) {
       Synth.prime();
-      const el = tracks[name];
-      Object.entries(tracks).forEach(([key, t]) => { if (key !== name) fadeOutAndPause(t); });
-      if (current === 'synth' && !failed.has(el)) Synth.stop();
+      const ch = channels[name];
+      Object.values(channels).forEach((c) => { if (c !== ch) fadeOutAndPause(c.el); });
+      if (failed.has(ch.list[ch.idx])) {
+        const i = nextPlayable(ch, ch.idx);
+        if (i < 0) {
+          if (current !== 'synth' || !playing) useSynth();
+          return;
+        }
+        ch.idx = i;
+      }
+      if (current === 'synth') Synth.stop();
       current = name;
       playing = true;
+      if (ch.el.paused) fadeIn(ch.el);
       render();
-      tryPlay(el).then((ok) => {
-        if (current !== name) return;
-        if (!ok) useSynth();
-        else render();
-      });
+      playChannel(ch);
     }
 
     function pause() {
       if (current === 'synth') Synth.stop();
-      else if (current) tracks[current].pause();
+      else if (current) channels[current].el.pause();
       playing = false;
       render();
     }
 
     function resume() {
-      if (!current) return start('wedding');
+      if (!current) { start('wedding'); return; }
       if (current === 'synth') {
         playing = Synth.start(muted);
         render();
@@ -217,7 +260,7 @@
     playBtn.addEventListener('click', () => (playing ? pause() : resume()));
     muteBtn.addEventListener('click', () => {
       muted = !muted;
-      Object.values(tracks).forEach((t) => { t.muted = muted; });
+      Object.values(channels).forEach((c) => { c.el.muted = muted; });
       Synth.setMuted(muted);
       render();
     });
@@ -235,6 +278,7 @@
     return {
       start,
       pause,
+      resume,
       get playing() { return playing; },
       get current() { return current; },
       onChange(fn) { listeners.push(fn); },
@@ -315,12 +359,19 @@
     const skipBtn = $('#skipIntro');
     const soundBtn = $('#introSound');
     const video = $('#introVideo');
+    const film = $('#introFilm');
     const timers = [];
     let opened = false;
 
     const later = (fn, ms) => timers.push(setTimeout(fn, ms));
     const clearTimers = () => { while (timers.length) clearTimeout(timers.pop()); };
     const setScene = (n) => { intro.dataset.scene = String(n); };
+    const playFilm = () => {
+      if (!film || reduceMotion || saveData || !film.paused) return;
+      const p = film.play();
+      if (p && p.catch) p.catch(() => {});
+    };
+    if (film && (reduceMotion || saveData)) film.preload = 'none';
 
     // Opening video: use it if present, otherwise keep the illustrated scene.
     if (video) {
@@ -339,6 +390,7 @@
     function showCta() {
       clearTimers();
       setScene(4);
+      playFilm();
       intro.classList.remove('is-playing');
       openBtn.focus({ preventScroll: true });
     }
@@ -348,6 +400,7 @@
       intro.classList.add('is-playing');
       setScene(1);
       later(() => setScene(2), 3000);
+      later(playFilm, 5600);
       later(() => setScene(3), 6000);
       later(showCta, CONFIG.introDuration);
     }
@@ -358,6 +411,7 @@
       document.body.classList.remove('is-intro');
       Particles.stop();
       if (video && video.isConnected) video.pause();
+      if (film) film.pause();
       Music.showControls();
       Petals.start();
       window.scrollTo(0, 0);
@@ -511,6 +565,67 @@
   }
 
   /* ---------------------------------------------------------
+     Pre-wedding film: silent loop while on screen, optional sound
+     --------------------------------------------------------- */
+  function initFilm() {
+    const video = $('#coupleFilm');
+    const btn = $('#filmSound');
+    if (!video || !btn) return;
+    const text = $('span', btn);
+    const autoplay = !reduceMotion && !saveData;
+    let soundOn = false;
+    let resumeMusic = false;
+    let visible = false;
+
+    const play = () => {
+      const p = video.play();
+      if (p && p.catch) p.catch(() => {});
+    };
+
+    function setSound(on) {
+      if (on === soundOn) return;
+      soundOn = on;
+      btn.setAttribute('aria-pressed', String(on));
+      text.textContent = on ? 'Mute film' : 'Play with sound';
+      if (on) {
+        resumeMusic = Music.playing;
+        if (resumeMusic) Music.pause();
+        video.muted = false;
+        video.currentTime = 0;
+        play();
+      } else {
+        video.muted = true;
+        if (!autoplay || !visible) video.pause();
+        if (resumeMusic) {
+          resumeMusic = false;
+          Music.resume();
+        }
+      }
+    }
+
+    btn.addEventListener('click', () => setSound(!soundOn));
+    // If the visitor restarts background music, the film goes quiet.
+    Music.onChange((playing) => {
+      if (playing && soundOn) {
+        resumeMusic = false;
+        setSound(false);
+      }
+    });
+
+    if ('IntersectionObserver' in window) {
+      new IntersectionObserver(([entry]) => {
+        visible = entry.isIntersecting;
+        if (visible) {
+          if (autoplay || soundOn) play();
+        } else {
+          setSound(false);
+          video.pause();
+        }
+      }, { threshold: 0.35 }).observe(video);
+    }
+  }
+
+  /* ---------------------------------------------------------
      Scroll reveals, nav state, parallax
      --------------------------------------------------------- */
   function initScroll() {
@@ -566,6 +681,7 @@
      --------------------------------------------------------- */
   initCountdown();
   initPhotos();
+  initFilm();
   initScroll();
   Intro.play();
 })();

@@ -8,17 +8,22 @@ royal-wedding-invitation/
 ├── css/style.css         # Theme, layout, animations, responsive rules
 ├── js/script.js          # Intro, envelope, music, countdown, gallery, reveals
 ├── assets/
-│   ├── video/opening.mp4         ← ADD (optional)
-│   ├── audio/opening-music.mp3   ← ADD (optional)
-│   ├── audio/wedding-music.mp3   ← ADD (optional)
-│   ├── images/couple-hero.jpg    ← ADD (real photo)
-│   ├── images/couple-1.jpg       ← ADD (real photo)
-│   ├── images/couple-2.jpg       ← ADD (real photo)
-│   ├── images/palace.jpg         ← ADD (optional hero background)
-│   ├── images/ganesha.png        ✓ reused from the original invitation (resized)
-│   └── icons/                    ✓ favicon.svg, kalash.png (from original)
+│   ├── video/couple-film.mp4       ✓ pre-wedding film, 720p (2.1 MB, web-optimized)
+│   ├── video/couple-film-540.mp4   ✓ same film, 540p for phones (1.2 MB)
+│   ├── video/opening.mp4           ← optional palace/temple clip for intro scene 1
+│   ├── audio/opening-music.mp3     ✓ intro music (25.8 s)
+│   ├── audio/wedding-music.mp3     ✓ main music (29.7 s)
+│   ├── audio/song-1.mp3            ✓ plays after wedding-music in rotation (7 s)
+│   ├── images/couple-film-poster.jpg ✓ still from the film (poster + link preview)
+│   ├── images/couple-1.jpg         ✓ still from the film (holding hands)
+│   ├── images/couple-2.jpg         ✓ still from the film (together)
+│   ├── images/palace.jpg           ← optional hero background
+│   ├── images/ganesha.png          ✓ reused from the original invitation (resized)
+│   └── icons/                      ✓ favicon.svg, kalash.png (from original)
 └── README.md
 ```
+
+The original WhatsApp uploads (a 9 MB video and three `.mpeg` audio clips) were moved to `../source-media/`, outside the site folder, so they don't get pushed to GitHub.
 
 ---
 
@@ -47,31 +52,39 @@ These details come from the original `wedding-responsive.html`:
 
 ---
 
-## 2. Adding your media
+## 2. Media
 
+### Where your video and music are used
+- **Intro, scene 3 (6–10 s):** the couple film fades in, warm-toned and darkened, behind the gold name frame. It also keeps playing behind the *Open Wedding Invitation* button.
+- **The Couple section:** the film plays as a silent loop in a gold palace frame while it is on screen, and pauses when scrolled away. **Play with sound** restarts it with its own audio and pauses the background music. **Mute film**, or scrolling away, brings the music back.
+- **Phones** get the 540p file and desktops get the 720p file, chosen automatically.
+- **Music:** *Sound* in the intro plays `opening-music.mp3`. *Open Wedding Invitation* starts the wedding playlist, which plays `wedding-music.mp3` then `song-1.mp3` and repeats. To reorder or swap tracks, edit `CONFIG.playlists` at the top of `js/script.js`.
+- The two portrait photos are real stills taken from the film. Replace `couple-1.jpg` and `couple-2.jpg` with photo-shoot pictures (3:4 portrait) whenever you have them.
+
+### Replacing or adding media
 The site works without any of these files. If a file is missing, the site uses a fallback or shows a labelled placeholder.
 
 | File | Recommended spec | If missing |
 |---|---|---|
-| `assets/images/couple-hero.jpg` | Landscape, 1600×900, JPEG quality ~75, < 350 KB | Gold "Photograph placeholder" card |
 | `assets/images/couple-1.jpg`, `couple-2.jpg` | Portrait 3:4, 900×1200, < 250 KB each | Placeholder in arch frame |
+| `assets/video/couple-film.mp4` / `-540.mp4` | H.264 + AAC, 1280×720 / 960×540, ~2 Mbps / ~1.2 Mbps | Poster image only |
 | `assets/images/palace.jpg` | 1920×1080, dark/warm, < 300 KB | Illustrated SVG palace only |
-| `assets/video/opening.mp4` | H.264, 1280×720 (or 720×1280), 10–12 s, **no audio track needed**, < 4 MB | Illustrated animated intro (palace, bells, particles) |
-| `assets/audio/opening-music.mp3` | 128 kbps, loopable, < 2 MB | Built-in synthesized tanpura drone + temple bell |
-| `assets/audio/wedding-music.mp3` | 128 kbps, loopable, < 5 MB | Built-in synthesized tanpura drone + temple bell |
+| `assets/video/opening.mp4` | H.264, 1280×720, 10–12 s, no audio, < 4 MB | Illustrated animated intro (palace, bells, particles) |
+| `assets/audio/*.mp3` | MP3, 128–320 kbps | Built-in synthesized tanpura drone + temple bell |
 
-The file names must match exactly. GitHub Pages is **case-sensitive**, so `Couple-1.JPG` will not work.
+The file names must match exactly. GitHub Pages is **case-sensitive**, so `Couple-1.JPG` will not work. WhatsApp saves audio as `.mpeg`. Rename those files to `.mp3`, because `.mpeg` is served as a video type and Safari may refuse to play it.
 
 **Audio licensing:** only use music you own or that is clearly royalty-free (for example, tracks marked free for commercial use on Pixabay Music or the YouTube Audio Library). The original page hot-linked a Pixabay CDN URL. That link was removed because hot-linked URLs often break.
 
 **Compressing photos on macOS:**
 ```bash
-sips -Z 1600 -s formatOptions 75 original.jpg --out assets/images/couple-hero.jpg
+sips -Z 1920 -s formatOptions 70 palace-original.jpg --out assets/images/palace.jpg
 sips -Z 1200 -s formatOptions 75 portrait1.jpg --out assets/images/couple-1.jpg
 ```
 **Compressing a video** (requires ffmpeg):
 ```bash
-ffmpeg -i input.mov -t 12 -vf "scale=1280:-2" -c:v libx264 -crf 28 -preset slow -an -movflags +faststart assets/video/opening.mp4
+ffmpeg -i input.mp4 -vf "scale=1280:-2" -c:v libx264 -b:v 2200k -c:a aac -b:a 128k -movflags +faststart assets/video/couple-film.mp4
+ffmpeg -i input.mp4 -vf "scale=960:-2"  -c:v libx264 -b:v 1200k -c:a aac -b:a 128k -movflags +faststart assets/video/couple-film-540.mp4
 ```
 
 ---
@@ -133,7 +146,7 @@ The `.nojekyll` file stops GitHub from running Jekyll, so the files are served e
 - [ ] The countdown shows the correct days to 3 Dec 2026, 8:00 AM IST.
 - [ ] **Get Directions** and **Open in Google Maps** open the correct place.
 - [ ] Test on an iPhone (Safari) and an Android phone (Chrome), in both portrait and landscape.
-- [ ] Optional: set `og:image` in `index.html` to an absolute URL, for example `https://<user>.github.io/<repo>/assets/images/couple-hero.jpg`, so WhatsApp link previews show a photo.
+- [ ] Optional: set `og:image` in `index.html` to an absolute URL, for example `https://<user>.github.io/<repo>/assets/images/couple-film-poster.jpg`, so WhatsApp link previews show a photo.
 
 ### d) Updating later
 ```bash
