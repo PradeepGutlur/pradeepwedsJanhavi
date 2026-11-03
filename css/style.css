@@ -293,7 +293,11 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .intro.env-open .envelope__seal { transform: scale(1.5); opacity: 0; }
 .intro.env-open .envelope__flap { transform: rotateX(180deg); z-index: 1; }
 .intro.env-rise .envelope__card { transform: translateY(-58%); }
-.intro.intro-out { opacity: 0; transition: opacity .9s var(--ease); }
+.intro.env-in .envelope { transition-duration: .18s, .25s; }
+.intro.env-in .envelope__flap { transition-duration: .25s, 0s; transition-delay: 0s, .12s; }
+.intro.env-in .envelope__seal { transition-duration: .18s; }
+.intro.env-in .envelope__card { transition-duration: .3s; }
+.intro.intro-out { opacity: 0; transition: opacity .4s var(--ease); }
 .intro.intro-out .envelope { transform: translate(-50%, -50%) scale(1.25); }
 
 /* =========================================================
@@ -664,6 +668,10 @@ body:not(.is-intro) .hero__content { animation-play-state: running; }
 .music__label { font-family: var(--f-head); font-size: .66rem; letter-spacing: .16em; text-transform: uppercase; color: var(--gold-light); max-width: 12em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .music__btn { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 50%; border: 1px solid rgba(212, 175, 98, .5); background: rgba(212, 175, 98, .12); color: var(--gold); transition: background-color .3s; }
 .music__btn:hover { background: rgba(212, 175, 98, .28); }
+.music__tracks { display: flex; align-items: center; gap: 2px; }
+.music__track { min-height: 44px; padding: 6px 10px; border: 0; border-radius: 4px; background: transparent; color: var(--champagne); font-family: var(--f-head); font-size: .65rem; }
+.music__track[aria-pressed="true"] { background: rgba(212, 175, 98, .22); color: var(--gold-light); }
+.music__btn { flex: none; width: 44px; height: 44px; }
 .music__btn .icon { width: 18px; height: 18px; }
 .music .icon--play, .music.is-playing .icon--pause { display: block; }
 .music .icon--pause, .music.is-playing .icon--play { display: none; }
@@ -675,7 +683,10 @@ body:not(.is-intro) .hero__content { animation-play-state: running; }
 .music__eq i:nth-child(2) { animation-delay: -.3s !important; }
 .music__eq i:nth-child(3) { animation-delay: -.6s !important; }
 @keyframes eq { 0%, 100% { height: 4px; } 50% { height: 14px; } }
-@media (max-width: 420px) { .music__label { display: none; } .music { padding-left: 12px; } }
+@media (max-width: 600px) {
+  .music__label, .music__eq { display: none; }
+  .music { left: 50%; right: auto; transform: translateX(-50%); max-width: calc(100% - 24px); padding: 6px; gap: 4px; animation: none; }
+}
 
 /* =========================================================
    LIGHTBOX
@@ -701,6 +712,22 @@ body:not(.is-intro) .hero__content { animation-play-state: running; }
   .site-nav ul { gap: 12px; }
   .intro__bell--l { left: 8%; } .intro__bell--r { right: 8%; }
   .intro__controls { left: 12px; right: 12px; justify-content: flex-end; }
+  .intro__chip { padding: 6px 10px; min-height: 44px; font-size: .62rem; letter-spacing: 0; }
+  .intro__palace { width: 145%; min-width: 0; bottom: 14%; animation: none; }
+  .intro__arch { display: none; }
+  .intro__scene { padding: 76px 24px 140px; }
+  .royal-frame { width: 100%; max-width: 420px; padding: 24px 16px; }
+  .intro__names .name { font-size: 2rem; letter-spacing: 0; }
+  .intro__names .amp { font-size: 1.6rem; }
+  .intro__tagline { font-size: 1.05rem; line-height: 1.4; }
+  .intro__tagline-kn { font-size: .85rem; line-height: 1.8; }
+  .intro__cta { bottom: max(28px, calc(env(safe-area-inset-bottom) + 16px)); }
+  .hero__content { width: 100%; min-width: 0; }
+  .hero__names { font-size: 2rem; letter-spacing: 0; }
+  .invocation__en, .hero__kicker { letter-spacing: 0; }
+  .hero__date { width: 100%; padding: 10px 12px; font-size: .75rem; letter-spacing: 0; border-radius: 8px; }
+  .hero__date [lang="kn"] { flex-basis: 100%; }
+  .hero__date [lang="kn"]::before { content: none; }
   .royal-frame__corner { width: 40px; height: 40px; }
   .invite-card { border-radius: 50% 50% 14px 14px / 90px 90px 14px 14px; }
   .invite-card__corner { width: 40px; height: 40px; }
@@ -711,6 +738,14 @@ body:not(.is-intro) .hero__content { animation-play-state: running; }
   .cd-cell { border-radius: 60px 60px 8px 8px; }
 }
 @media (max-width: 360px) { .site-nav__brand { display: none; } .site-nav { justify-content: center; } }
+@media (max-height: 620px) {
+  .intro__scene { inset: 64px 0 112px; padding: 18px 24px; justify-content: flex-start; overflow-y: auto; }
+  .ganesha-halo { width: 120px; flex: none; }
+  .intro__mantra { margin-top: 16px; font-size: 1.6rem; }
+  .royal-frame { flex: none; padding: 18px 24px; }
+  .intro__names .name { font-size: 2rem; }
+  .intro__cta { bottom: max(20px, env(safe-area-inset-bottom)); }
+}
 
 /* =========================================================
    REDUCED MOTION

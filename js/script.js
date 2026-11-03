@@ -10,10 +10,9 @@
     muhurtham: '2026-12-03T08:00:00+05:30',
     introDuration: 10000,
     musicVolume: 0.55,
-    // Tracks play in order and repeat; a single-track list loops.
-    playlists: {
-      opening: ['assets/audio/opening-music.mp3'],
-      wedding: ['assets/audio/wedding-music.mp3', 'assets/audio/song-1.mp3'],
+    songs: {
+      opening: 'assets/audio/song-1.mp3',
+      wedding: 'assets/audio/wedding-music.mp3',
     },
   };
 
@@ -23,247 +22,42 @@
   const saveData = !!(navigator.connection && navigator.connection.saveData);
 
   /* ---------------------------------------------------------
-     Synthesised temple ambience — fallback when MP3s are missing
-     --------------------------------------------------------- */
-  const Synth = (() => {
-    let ctx = null, master = null, built = false, running = false, bellTimer = 0;
-    const LEVEL = 0.32;
-
-    function prime() {
-      const AC = window.AudioContext || window.webkitAudioContext;
-      if (!AC) return false;
-      if (!ctx) {
-        ctx = new AC();
-        master = ctx.createGain();
-        master.gain.value = 0;
-        master.connect(ctx.destination);
-      }
-      if (ctx.state === 'suspended') ctx.resume();
-      return true;
-    }
-
-    // Tanpura-like drone on Sa–Pa–Sa
-    function build() {
-      const lp = ctx.createBiquadFilter();
-      lp.type = 'lowpass';
-      lp.frequency.value = 900;
-      lp.connect(master);
-      [[73.42, 0.3], [110, 0.2], [146.83, 0.26], [220, 0.1]].forEach(([freq, gain], i) => {
-        const osc = ctx.createOscillator();
-        osc.type = i % 2 ? 'sine' : 'triangle';
-        osc.frequency.value = freq;
-        osc.detune.value = (i - 1.5) * 3;
-        const g = ctx.createGain();
-        g.gain.value = gain;
-        const lfo = ctx.createOscillator();
-        lfo.frequency.value = 0.07 + i * 0.03;
-        const lfoGain = ctx.createGain();
-        lfoGain.gain.value = gain * 0.4;
-        lfo.connect(lfoGain).connect(g.gain);
-        osc.connect(g).connect(lp);
-        osc.start();
-        lfo.start();
-      });
-      built = true;
-    }
-
-    function bell() {
-      const t = ctx.currentTime;
-      [[1, 0.16], [2, 0.05], [2.76, 0.07], [5.4, 0.025]].forEach(([mult, peak], i) => {
-        const osc = ctx.createOscillator();
-        osc.frequency.value = 587.33 * mult;
-        const g = ctx.createGain();
-        g.gain.setValueAtTime(0.0001, t);
-        g.gain.exponentialRampToValueAtTime(peak, t + 0.01);
-        g.gain.exponentialRampToValueAtTime(0.0001, t + 3.6 - i * 0.6);
-        osc.connect(g).connect(master);
-        osc.start(t);
-        osc.stop(t + 4);
-      });
-    }
-
-    function scheduleBell() {
-      clearTimeout(bellTimer);
-      if (!running) return;
-      bell();
-      bellTimer = setTimeout(scheduleBell, 7000 + Math.random() * 5000);
-    }
-
-    function setLevel(v) {
-      if (!ctx) return;
-      const t = ctx.currentTime;
-      master.gain.cancelScheduledValues(t);
-      master.gain.setTargetAtTime(v, t, 0.4);
-    }
-
-    return {
-      prime,
-      start(muted) {
-        if (!prime()) return false;
-        if (!built) build();
-        running = true;
-        setLevel(muted ? 0 : LEVEL);
-        scheduleBell();
-        return true;
-      },
-      stop() {
-        running = false;
-        clearTimeout(bellTimer);
-        setLevel(0);
-      },
-      setMuted(m) { if (running) setLevel(m ? 0 : LEVEL); },
-    };
-  })();
-
-  /* ---------------------------------------------------------
      Music controller
      --------------------------------------------------------- */
   const Music = (() => {
-    const labels = { opening: 'Opening Music', wedding: 'Wedding Music', synth: 'Temple Ambience' };
-    const ui = $('#music');
-    const playBtn = $('#musicPlay');
-    const muteBtn = $('#musicMute');
-    const label = $('#musicLabel');
-    const failed = new Set(); // URLs that could not be loaded
-    const channels = {};
-    let current = null; // 'opening' | 'wedding' | 'synth'
+    let current = 'opening';
+    const audio = new Audio(CONFIG.songs[current]);
+    audio.preload = 'none';
+    audio.loop = true;
+    audio.volume = CONFIG.musicVolume;
     let playing = false;
-    let muted = false;
+    let started = false;
     let resumeOnVisible = false;
     const listeners = [];
 
-    Object.entries(CONFIG.playlists).forEach(([name, list]) => {
-      const ch = { name, list, idx: 0, el: new Audio() };
-      ch.el.preload = 'none';
-      ch.el.loop = list.length === 1;
-      ch.el.addEventListener('ended', () => advance(ch));
-      ch.el.addEventListener('error', () => {
-        failed.add(ch.list[ch.idx]);
-        if (current === name && playing) advance(ch);
-      });
-      channels[name] = ch;
-    });
+    function notify() {
+      playing = !audio.paused && !audio.error;
+      listeners.forEach((fn) => fn(playing));
+    }
 
-    function nextPlayable(ch, from) {
-      for (let k = 1; k <= ch.list.length; k += 1) {
-        const i = (from + k) % ch.list.length;
-        if (!failed.has(ch.list[i])) return i;
+    function start(name = current) {
+      if (name !== current) {
+        audio.pause();
+        current = name;
+        audio.src = CONFIG.songs[current];
       }
-      return -1;
-    }
-
-    function load(ch) {
-      const url = ch.list[ch.idx];
-      if (ch.el.getAttribute('src') !== url) ch.el.src = url;
-    }
-
-    function fadeIn(el) {
-      el.volume = 0;
-      let step = 0;
-      const id = setInterval(() => {
-        step += 1;
-        el.volume = Math.min(CONFIG.musicVolume, (CONFIG.musicVolume * step) / 12);
-        if (step >= 12) clearInterval(id);
-      }, 80);
-    }
-
-    function playChannel(ch) {
-      load(ch);
-      ch.el.muted = muted;
-      const p = ch.el.play();
-      if (p && p.catch) {
-        p.then(render).catch((err) => {
-          // Load failures are handled by the 'error' event; only react to a blocked autoplay here.
-          if (err && err.name === 'NotAllowedError' && current === ch.name) { playing = false; render(); }
-        });
-      }
-    }
-
-    function advance(ch) {
-      if (current !== ch.name) return;
-      const i = nextPlayable(ch, ch.idx);
-      if (i < 0) { useSynth(); return; }
-      ch.idx = i;
-      fadeIn(ch.el);
-      playChannel(ch);
-    }
-
-    function useSynth() {
-      current = 'synth';
-      playing = Synth.start(muted);
-      render();
-    }
-
-    function render() {
-      ui.classList.toggle('is-playing', playing);
-      ui.classList.toggle('is-muted', muted);
-      playBtn.setAttribute('aria-label', playing ? 'Pause music' : 'Play music');
-      muteBtn.setAttribute('aria-label', muted ? 'Unmute music' : 'Mute music');
-      muteBtn.setAttribute('aria-pressed', String(muted));
-      label.textContent = current ? labels[current] : 'Music';
-      listeners.forEach((fn) => fn(playing, current));
-    }
-
-    function fadeOutAndPause(el) {
-      if (el.paused) return;
-      const start = el.volume;
-      let step = 0;
-      const id = setInterval(() => {
-        step += 1;
-        el.volume = Math.max(0, start * (1 - step / 10));
-        if (step >= 10) {
-          clearInterval(id);
-          el.pause();
-          el.volume = CONFIG.musicVolume;
-        }
-      }, 80);
-    }
-
-    // Must be called from a user gesture.
-    function start(name) {
-      Synth.prime();
-      const ch = channels[name];
-      Object.values(channels).forEach((c) => { if (c !== ch) fadeOutAndPause(c.el); });
-      if (failed.has(ch.list[ch.idx])) {
-        const i = nextPlayable(ch, ch.idx);
-        if (i < 0) {
-          if (current !== 'synth' || !playing) useSynth();
-          return;
-        }
-        ch.idx = i;
-      }
-      if (current === 'synth') Synth.stop();
-      current = name;
-      playing = true;
-      if (ch.el.paused) fadeIn(ch.el);
-      render();
-      playChannel(ch);
+      started = true;
+      audio.play().then(notify).catch(notify);
     }
 
     function pause() {
-      if (current === 'synth') Synth.stop();
-      else if (current) channels[current].el.pause();
-      playing = false;
-      render();
+      audio.pause();
+      notify();
     }
 
-    function resume() {
-      if (!current) { start('wedding'); return; }
-      if (current === 'synth') {
-        playing = Synth.start(muted);
-        render();
-        return;
-      }
-      start(current);
-    }
-
-    playBtn.addEventListener('click', () => (playing ? pause() : resume()));
-    muteBtn.addEventListener('click', () => {
-      muted = !muted;
-      Object.values(channels).forEach((c) => { c.el.muted = muted; });
-      Synth.setMuted(muted);
-      render();
-    });
+    audio.addEventListener('play', notify);
+    audio.addEventListener('pause', notify);
+    audio.addEventListener('error', notify);
 
     document.addEventListener('visibilitychange', () => {
       if (document.hidden && playing) {
@@ -271,18 +65,17 @@
         pause();
       } else if (!document.hidden && resumeOnVisible) {
         resumeOnVisible = false;
-        resume();
+        start();
       }
     });
 
     return {
       start,
       pause,
-      resume,
+      resume: start,
       get playing() { return playing; },
-      get current() { return current; },
+      get started() { return started; },
       onChange(fn) { listeners.push(fn); },
-      showControls() { ui.hidden = false; },
     };
   })();
 
@@ -360,6 +153,8 @@
     const soundBtn = $('#introSound');
     const video = $('#introVideo');
     const film = $('#introFilm');
+    const background = $$('#main, #siteNav, .footer');
+    background.forEach((el) => { el.inert = true; });
     const timers = [];
     let opened = false;
 
@@ -382,8 +177,7 @@
         if (src) src.addEventListener('error', dropVideo);
         video.addEventListener('error', dropVideo);
         video.addEventListener('playing', () => intro.classList.add('has-video'), { once: true });
-        const p = video.play && video.play();
-        if (p && p.catch) p.catch(() => {});
+        video.play().catch(() => {});
       }
     }
 
@@ -396,6 +190,7 @@
     }
 
     function play() {
+      Music.start('opening');
       if (reduceMotion) { showCta(); return; }
       intro.classList.add('is-playing');
       setScene(1);
@@ -409,10 +204,10 @@
       intro.classList.add('is-done');
       intro.setAttribute('aria-hidden', 'true');
       document.body.classList.remove('is-intro');
+      background.forEach((el) => { el.inert = false; });
       Particles.stop();
       if (video && video.isConnected) video.pause();
       if (film) film.pause();
-      Music.showControls();
       Petals.start();
       window.scrollTo(0, 0);
       const home = $('#home');
@@ -427,20 +222,31 @@
       Music.start('wedding');
       if (reduceMotion) { finish(); return; }
       intro.classList.add('env-in');
-      later(() => intro.classList.add('env-open'), 700);
-      later(() => intro.classList.add('env-rise'), 1500);
-      later(() => intro.classList.add('intro-out'), 2500);
-      later(finish, 3400);
+      openBtn.disabled = true;
+      later(() => intro.classList.add('env-open'), 180);
+      later(() => intro.classList.add('env-rise'), 430);
+      later(() => intro.classList.add('intro-out'), 700);
+      later(finish, 1100);
     }
 
     openBtn.addEventListener('click', open);
-    skipBtn.addEventListener('click', showCta);
+    skipBtn.addEventListener('click', () => {
+      if (!Music.playing) Music.start('opening');
+      showCta();
+    });
     soundBtn.addEventListener('click', () => {
       if (Music.playing) Music.pause();
-      else Music.start('opening');
+      else Music.start();
     });
     Music.onChange((playing) => soundBtn.setAttribute('aria-pressed', String(playing)));
     document.addEventListener('keydown', (e) => {
+      if (e.key === 'Tab' && !intro.classList.contains('is-done')) {
+        const buttons = $$('button', intro).filter((btn) => !btn.disabled && getComputedStyle(btn).visibility !== 'hidden' && (btn !== openBtn || intro.dataset.scene === '4'));
+        const first = buttons[0];
+        const last = buttons[buttons.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
       if (e.key === 'Escape' && !opened && intro.dataset.scene !== '4') showCta();
     });
 

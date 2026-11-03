@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#21040C">
-  <meta name="description" content="ಶುಭ ವಿವಾಹ · Pradeep & Janhavi — Wedding Muhurtham on Thursday, 3rd December 2026 at Advaith Convention Hall, Koratagere. A Royal Mysore heritage invitation.">
+  <meta name="description" content="ಶುಭ ವಿವಾಹ · Pradeep & Janhavi — Wedding Muhurtham on Thursday, 3rd December 2026 at Advaith Convention Hall, Koratagere.">
   <meta property="og:title" content="Pradeep weds Janhavi · ಶುಭ ವಿವಾಹ">
   <meta property="og:description" content="With the blessings of our families, we cordially invite you to celebrate the wedding of Pradeep & Janhavi · 3rd December 2026">
   <meta property="og:type" content="website">
@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=Cinzel+Decorative:wght@700&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Noto+Sans+Kannada:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="preload" as="image" href="assets/images/ganesha.png">
-  <link rel="stylesheet" href="css/style.css?v=3">
+  <link rel="stylesheet" href="css/style.css?v=4">
 </head>
 <body class="is-intro">
   <a class="skip-link" href="#main">Skip to invitation content</a>
@@ -229,24 +229,21 @@
         <svg class="intro__bell intro__bell--r"><use href="#i-bell"/></svg>
       </div>
       <!-- Couple film fades in behind the names in scene 3 -->
-      <video id="introFilm" class="intro__film" muted loop playsinline preload="auto" poster="assets/images/couple-film-poster.jpg" aria-hidden="true">
+      <video id="introFilm" class="intro__film" muted loop playsinline preload="none" poster="assets/images/couple-film-poster.jpg" aria-hidden="true">
         <source src="assets/video/couple-film-540.mp4" type="video/mp4" media="(max-width: 700px)">
         <source src="assets/video/couple-film.mp4" type="video/mp4">
       </video>
       <canvas id="introParticles" class="intro__particles" aria-hidden="true"></canvas>
       <div class="intro__vignette" aria-hidden="true"></div>
 
-      <!-- Scene 1 caption -->
-      <div class="intro__scene intro__scene--1" aria-hidden="true">
-        <p class="intro__kicker">Mysuru Heritage · <span lang="kn">ಮೈಸೂರು ಪರಂಪರೆ</span></p>
-      </div>
+      <div class="intro__scene intro__scene--1" aria-hidden="true"></div>
 
       <!-- Scene 2: Ganesha blessing -->
       <div class="intro__scene intro__scene--2">
         <div class="ganesha-halo">
           <img src="assets/images/ganesha.png" alt="Lord Ganesha seated on a golden lotus" width="400" height="400" class="ganesha-img">
         </div>
-        <p class="intro__mantra" lang="kn">ಶ್ರೀ ಗಣೇಶಾಯ ನಮಃ</p>
+        <p class="intro__mantra" lang="kn">ಶ್ರೀ ಲಕ್ಷ್ಮೀ ವೆಂಕಟೇಶ್ವರ ಪ್ರಸನ್ನ</p>
         <p class="intro__mantra-en">With the blessings of Lord Ganesha</p>
       </div>
 
@@ -500,8 +497,6 @@
               <dl class="event__facts">
                 <div><dt><svg class="icon"><use href="#i-calendar"/></svg>Date</dt><dd>2<sup>nd</sup> December 2026</dd></div>
                 <div><dt><svg class="icon"><use href="#i-sun"/></svg>Day</dt><dd>Wednesday · <span lang="kn">ಬುಧವಾರ</span></dd></div>
-                <div><dt><svg class="icon"><use href="#i-clock"/></svg>Time</dt><dd class="tbc">To be confirmed</dd></div>
-                <div><dt><svg class="icon"><use href="#i-pin"/></svg>Venue</dt><dd class="tbc">To be confirmed</dd></div>
                 <div><dt><svg class="icon"><use href="#i-dining"/></svg>Dining</dt><dd>Accompanied with dining</dd></div>
               </dl>
             </article>
@@ -585,20 +580,6 @@
     <p class="footer__made">Made with Love for Pradeep &amp; Janhavi</p>
   </footer>
 
-  <!-- ============ MUSIC CONTROLS ============ -->
-  <div class="music" id="music" role="group" aria-label="Background music controls" hidden>
-    <span class="music__eq" aria-hidden="true"><i></i><i></i><i></i></span>
-    <span class="music__label" id="musicLabel">Music</span>
-    <button id="musicPlay" class="music__btn" type="button" aria-label="Pause music">
-      <svg class="icon icon--play"><use href="#i-play"/></svg>
-      <svg class="icon icon--pause"><use href="#i-pause"/></svg>
-    </button>
-    <button id="musicMute" class="music__btn" type="button" aria-label="Mute music" aria-pressed="false">
-      <svg class="icon icon--vol"><use href="#i-volume"/></svg>
-      <svg class="icon icon--mute"><use href="#i-mute"/></svg>
-    </button>
-  </div>
-
   <!-- ============ LIGHTBOX ============ -->
   <dialog id="lightbox" class="lightbox" aria-label="Photo viewer">
     <button class="lightbox__btn lightbox__close" type="button" aria-label="Close"><svg class="icon"><use href="#i-close"/></svg></button>
@@ -608,6 +589,6 @@
   </dialog>
 
   <noscript><style>.intro{display:none!important}.reveal{opacity:1!important;transform:none!important}body.is-intro{overflow:auto!important}</style></noscript>
-  <script src="js/script.js?v=3" defer></script>
+  <script src="js/script.js?v=4" defer></script>
 </body>
 </html>
