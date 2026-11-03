@@ -33,6 +33,7 @@
     let playing = false;
     let started = false;
     let resumeOnVisible = false;
+    let autoplayBlocked = false;
     const listeners = [];
 
     function notify() {
@@ -47,7 +48,13 @@
         audio.src = CONFIG.songs[current];
       }
       started = true;
-      audio.play().then(notify).catch(notify);
+      audio.play().then(() => {
+        autoplayBlocked = false;
+        notify();
+      }).catch((error) => {
+        autoplayBlocked = error.name === 'NotAllowedError';
+        notify();
+      });
     }
 
     function pause() {
@@ -58,6 +65,12 @@
     audio.addEventListener('play', notify);
     audio.addEventListener('pause', notify);
     audio.addEventListener('error', notify);
+
+    const retryAutoplay = () => {
+      if (autoplayBlocked && !playing && !document.hidden) start();
+    };
+    document.addEventListener('pointerdown', retryAutoplay);
+    document.addEventListener('keydown', retryAutoplay);
 
     document.addEventListener('visibilitychange', () => {
       if (document.hidden && playing) {
@@ -150,7 +163,6 @@
     const intro = $('#intro');
     const openBtn = $('#openInvitation');
     const skipBtn = $('#skipIntro');
-    const soundBtn = $('#introSound');
     const video = $('#introVideo');
     const film = $('#introFilm');
     const background = $$('#main, #siteNav, .footer');
@@ -234,11 +246,6 @@
       if (!Music.playing) Music.start('opening');
       showCta();
     });
-    soundBtn.addEventListener('click', () => {
-      if (Music.playing) Music.pause();
-      else Music.start();
-    });
-    Music.onChange((playing) => soundBtn.setAttribute('aria-pressed', String(playing)));
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Tab' && !intro.classList.contains('is-done')) {
         const buttons = $$('button', intro).filter((btn) => !btn.disabled && getComputedStyle(btn).visibility !== 'hidden' && (btn !== openBtn || intro.dataset.scene === '4'));
@@ -371,64 +378,28 @@
   }
 
   /* ---------------------------------------------------------
-     Pre-wedding film: silent loop while on screen, optional sound
+    Pre-wedding film: silent loop alongside the wedding music
      --------------------------------------------------------- */
   function initFilm() {
     const video = $('#coupleFilm');
-    const btn = $('#filmSound');
-    if (!video || !btn) return;
-    const text = $('span', btn);
+    if (!video) return;
     const autoplay = !reduceMotion && !saveData;
-    let soundOn = false;
-    let resumeMusic = false;
-    let visible = false;
+    video.muted = true;
 
     const play = () => {
       const p = video.play();
       if (p && p.catch) p.catch(() => {});
     };
 
-    function setSound(on) {
-      if (on === soundOn) return;
-      soundOn = on;
-      btn.setAttribute('aria-pressed', String(on));
-      text.textContent = on ? 'Mute film' : 'Play with sound';
-      if (on) {
-        resumeMusic = Music.playing;
-        if (resumeMusic) Music.pause();
-        video.muted = false;
-        video.currentTime = 0;
-        play();
-      } else {
-        video.muted = true;
-        if (!autoplay || !visible) video.pause();
-        if (resumeMusic) {
-          resumeMusic = false;
-          Music.resume();
-        }
-      }
-    }
-
-    btn.addEventListener('click', () => setSound(!soundOn));
-    // If the visitor restarts background music, the film goes quiet.
-    Music.onChange((playing) => {
-      if (playing && soundOn) {
-        resumeMusic = false;
-        setSound(false);
-      }
-    });
-
     if ('IntersectionObserver' in window) {
       new IntersectionObserver(([entry]) => {
-        visible = entry.isIntersecting;
-        if (visible) {
-          if (autoplay || soundOn) play();
+        if (entry.isIntersecting) {
+          if (autoplay) play();
         } else {
-          setSound(false);
           video.pause();
         }
       }, { threshold: 0.35 }).observe(video);
-    }
+    } else if (autoplay) play();
   }
 
   /* ---------------------------------------------------------
